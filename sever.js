@@ -1,8 +1,6 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const Razorpay = require("razorpay");
-const geoip = require("geoip-lite");
-
 
 const app = express();
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -12,14 +10,14 @@ require('dotenv').config();
 
 // Razorpay configuration
 const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID, // Replace with your Razorpay Key ID
-  key_secret: process.env.RAZORPAY_KEY_SECRET, // Replace with your Razorpay Key Secret
+    key_id: process.env.RAZORPAY_KEY_ID, // Replace with your Razorpay Key ID
+    key_secret: process.env.RAZORPAY_KEY_SECRET, // Replace with your Razorpay Key Secret
 });
 
 // Serve the feedback form
 
 app.get("/", (req, res) => {
-  res.send(`
+    res.send(`
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -175,38 +173,27 @@ app.get("/", (req, res) => {
 
 // Handle feedback submission and create Razorpay order
 app.post("/submitFeedback", async (req, res) => {
-  const { rating, amount } = req.body;
+    const { rating, amount } = req.body;
 
-  // Get user's IP address
-  const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
-  const geo = geoip.lookup(ip);
+    // Log feedback
+    console.log("User Feedback:", rating);
+    console.log("Payment Amount:", amount);
 
-  // Log location coordinates (latitude, longitude)
-  if (geo) {
-    console.log("User Location:", geo.ll); // 'll' contai[latitude, longitude]
-  } else {
-    console.log("User Location: Unable to determine");
-  }
+    // Convert amount to paise (Razorpay requires the amount in paise)
+    const amountInPaise = parseInt(amount) * 100;
 
-  // Log feedback
-  console.log("User Feedback:", rating);
-  console.log("Payment Amount:", amount);
+    // Create a Razorpay order
+    const options = {
+        amount: amountInPaise,
+        currency: "INR",
+        receipt: `receipt_${Math.floor(Math.random() * 1000)}`,
+    };
 
-  // Convert amount to paise (Razorpay requires the amount in paise)
-  const amountInPaise = parseInt(amount) * 100;
+    try {
+        const order = await razorpay.orders.create(options);
 
-  // Create a Razorpay order
-  const options = {
-    amount: amountInPaise,
-    currency: "INR",
-    receipt: `receipt_${Math.floor(Math.random() * 1000)}`,
-  };
-
-  try {
-    const order = await razorpay.orders.create(options);
-
-    // Send payment page to user
-    res.send(`
+        // Send payment page to user
+        res.send(`
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -286,24 +273,24 @@ app.post("/submitFeedback", async (req, res) => {
 </html>
 
     `);
-  } catch (err) {
-    console.error("Error creating Razorpay order:", err);
-    res.status(500).send("Error creating payment order.");
-  }
+    } catch (err) {
+        console.error("Error creating Razorpay order:", err);
+        res.status(500).send("Error creating payment order.");
+    }
 });
 
 // Verify payment
 app.post("/verifyPayment", (req, res) => {
-  const crypto = require("crypto");
+    const crypto = require("crypto");
 
-  const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
 
-  const hmac = crypto.createHmac("sha256", process.env.RAZORPAY_KEY_SECRET); // Replace with your Razorpay Key Secret
-  hmac.update(razorpay_order_id + "|" + razorpay_payment_id);
-  const generatedSignature = hmac.digest("hex");
+    const hmac = crypto.createHmac("sha256", process.env.RAZORPAY_KEY_SECRET); // Replace with your Razorpay Key Secret
+    hmac.update(razorpay_order_id + "|" + razorpay_payment_id);
+    const generatedSignature = hmac.digest("hex");
 
-  if (generatedSignature === razorpay_signature) {
-    res.send(`
+    if (generatedSignature === razorpay_signature) {
+        res.send(`
             <!DOCTYPE html>
             <html lang="en">
               <head>
@@ -354,8 +341,8 @@ app.post("/verifyPayment", (req, res) => {
             </html>
           `);
 
-  } else {
-    res.status(400).send(`            
+    } else {
+        res.status(400).send(`            
             <!DOCTYPE html>
             <html lang="en">
               <head>
@@ -404,11 +391,11 @@ app.post("/verifyPayment", (req, res) => {
                 </div>
               </body>
             </html>`);
-  }
+    }
 });
 
 // Start the server
 const PORT = 3000;
 app.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`);
+    console.log(`Server running at http://localhost:${PORT}`);
 });
